@@ -221,7 +221,7 @@ class Chart extends WriterPart
             return;
         }
 
-        $id1 = $id2 = 0;
+        $id1 = $id2 = $secondaryId2 = 0;
         $this->seriesIndex = 0;
         $objWriter->startElement('c:plotArea');
 
@@ -232,6 +232,7 @@ class Chart extends WriterPart
         $chartTypes = self::getChartType($plotArea);
         $catIsMultiLevelSeries = $valIsMultiLevelSeries = false;
         $plotGroupingType = '';
+        $useSecondaryYAxis = false;
         foreach ($chartTypes as $chartType) {
             $objWriter->startElement('c:' . $chartType);
 
@@ -299,17 +300,27 @@ class Chart extends WriterPart
                 $objWriter->endElement();
             }
 
-            //    Generate 2 unique numbers to use for axId values
+            //    Generate 3 unique numbers to use for axId values
             $id1 = '75091328';
             $id2 = '75089408';
+            $secondaryId2 = '205755944';
 
             if (($chartType !== DataSeries::TYPE_PIECHART) && ($chartType !== DataSeries::TYPE_PIECHART_3D) && ($chartType !== DataSeries::TYPE_DONUTCHART)) {
                 $objWriter->startElement('c:axId');
                 $objWriter->writeAttribute('val', $id1);
                 $objWriter->endElement();
-                $objWriter->startElement('c:axId');
-                $objWriter->writeAttribute('val', $id2);
-                $objWriter->endElement();
+
+                $plotGroup = $this->getPlotGroupByChartType($plotArea, $chartType);
+                if ($plotGroup && $plotGroup->getAxisPosition() === DataSeries::AXIS_POSITION_RIGHT) {
+                    $useSecondaryYAxis = true;
+                    $objWriter->startElement('c:axId');
+                    $objWriter->writeAttribute('val', $secondaryId2);
+                    $objWriter->endElement();
+                } else {
+                    $objWriter->startElement('c:axId');
+                    $objWriter->writeAttribute('val', $id2);
+                    $objWriter->endElement();
+                }
             } else {
                 $objWriter->startElement('c:firstSliceAng');
                 $objWriter->writeAttribute('val', 0);
@@ -327,15 +338,41 @@ class Chart extends WriterPart
 
         if (($chartType !== DataSeries::TYPE_PIECHART) && ($chartType !== DataSeries::TYPE_PIECHART_3D) && ($chartType !== DataSeries::TYPE_DONUTCHART)) {
             if ($chartType === DataSeries::TYPE_BUBBLECHART) {
-                $this->writeValueAxis($objWriter, $xAxisLabel, $chartType, $id1, $id2, $catIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines);
+                $this->writeValueAxis($objWriter, $xAxisLabel, $chartType, $id1, $id2, $catIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines, DataSeries::AXIS_POSITION_LEFT);
             } else {
                 $this->writeCategoryAxis($objWriter, $xAxisLabel, $id1, $id2, $catIsMultiLevelSeries, $yAxis);
             }
 
-            $this->writeValueAxis($objWriter, $yAxisLabel, $chartType, $id1, $id2, $valIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines);
+            $this->writeValueAxis($objWriter, $yAxisLabel, $chartType, $id1, $id2, $valIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines, DataSeries::AXIS_POSITION_LEFT);
+        }
+
+        if ($useSecondaryYAxis) {
+            $this->writeValueAxis($objWriter, $yAxisLabel, $chartType, $id1, $secondaryId2, $valIsMultiLevelSeries, $xAxis, $majorGridlines, $minorGridlines, DataSeries::AXIS_POSITION_RIGHT);
         }
 
         $objWriter->endElement();
+    }
+
+    /**
+     * Get a DataSeries corresponds to specific chart type.
+     *
+     * @param PlotArea $plotArea
+     * @param string $chartType
+     *
+     * @return DataSeries|null
+     */
+    private function getPlotGroupByChartType(PlotArea $plotArea, $chartType)
+    {
+        $groupCount = $plotArea->getPlotGroupCount();
+        for ($i = 0; $i < $groupCount; ++$i) {
+            $plotGroup = $plotArea->getPlotGroupByIndex($i);
+            $groupType = $plotGroup->getPlotType();
+            if ($groupType == $chartType) {
+                return $plotGroup;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -518,10 +555,11 @@ class Chart extends WriterPart
      * @param Axis $xAxis
      * @param GridLines $majorGridlines
      * @param GridLines $minorGridlines
+     * @param string $axisPosition
      *
      * @throws WriterException
      */
-    private function writeValueAxis($objWriter, $yAxisLabel, $groupType, $id1, $id2, $isMultiLevelSeries, Axis $xAxis, GridLines $majorGridlines, GridLines $minorGridlines)
+    private function writeValueAxis($objWriter, $yAxisLabel, $groupType, $id1, $id2, $isMultiLevelSeries, Axis $xAxis, GridLines $majorGridlines, GridLines $minorGridlines, $axisPosition)
     {
         $objWriter->startElement('c:valAx');
 
@@ -556,7 +594,7 @@ class Chart extends WriterPart
         $objWriter->endElement();
 
         $objWriter->startElement('c:axPos');
-        $objWriter->writeAttribute('val', 'l');
+        $objWriter->writeAttribute('val', $axisPosition);
         $objWriter->endElement();
 
         $objWriter->startElement('c:majorGridlines');
@@ -604,6 +642,7 @@ class Chart extends WriterPart
             }
             $objWriter->endElement(); //end ln
         }
+
         $objWriter->startElement('a:effectLst');
 
         if ($majorGridlines->getGlowSize() !== null) {
@@ -953,7 +992,7 @@ class Chart extends WriterPart
 
         if ($id1 > 0) {
             $objWriter->startElement('c:crossAx');
-            $objWriter->writeAttribute('val', $id2);
+            $objWriter->writeAttribute('val', $id1);
             $objWriter->endElement();
 
             if ($xAxis->getAxisOptionsProperty('horizontal_crosses_value') !== null) {
@@ -962,12 +1001,16 @@ class Chart extends WriterPart
                 $objWriter->endElement();
             } else {
                 $objWriter->startElement('c:crosses');
-                $objWriter->writeAttribute('val', $xAxis->getAxisOptionsProperty('horizontal_crosses'));
+                if ($axisPosition === DataSeries::AXIS_POSITION_RIGHT) {
+                    $objWriter->writeAttribute('val', 'max');
+                } else {
+                    $objWriter->writeAttribute('val', $xAxis->getAxisOptionsProperty('horizontal_crosses'));
+                }
                 $objWriter->endElement();
             }
 
             $objWriter->startElement('c:crossBetween');
-            $objWriter->writeAttribute('val', 'midCat');
+            $objWriter->writeAttribute('val', 'between');
             $objWriter->endElement();
 
             if ($xAxis->getAxisOptionsProperty('major_unit') !== null) {

@@ -40,6 +40,9 @@ class DataSeries
     const STYLE_MARKER = 'marker';
     const STYLE_FILLED = 'filled';
 
+    const AXIS_POSITION_LEFT  = 'l';
+    const AXIS_POSITION_RIGHT = 'r';
+
     /**
      * Series Plot Type.
      *
@@ -104,6 +107,13 @@ class DataSeries
     private $plotValues = [];
 
     /**
+     * Axis Position.
+     *
+     * @var string
+     */
+    private $axisPosition;
+
+    /**
      * Create a new DataSeries.
      *
      * @param null|mixed $plotType
@@ -115,8 +125,9 @@ class DataSeries
      * @param null|string $plotDirection
      * @param bool $smoothLine
      * @param null|string $plotStyle
+     * @param null|string $axisPosition
      */
-    public function __construct($plotType = null, $plotGrouping = null, array $plotOrder = [], array $plotLabel = [], array $plotCategory = [], array $plotValues = [], $plotDirection = null, $smoothLine = false, $plotStyle = null)
+    public function __construct($plotType = null, $plotGrouping = null, array $plotOrder = [], array $plotLabel = [], array $plotCategory = [], array $plotValues = [], $plotDirection = null, $smoothLine = false, $plotStyle = null, $axisPosition = null)
     {
         $this->plotType = $plotType;
         $this->plotGrouping = $plotGrouping;
@@ -140,6 +151,10 @@ class DataSeries
             $plotDirection = self::DIRECTION_COL;
         }
         $this->plotDirection = $plotDirection;
+
+        if ($axisPosition === null) {
+            $this->axisPosition = self::AXIS_POSITION_LEFT;
+        }
     }
 
     /**
@@ -365,6 +380,30 @@ class DataSeries
     public function setSmoothLine($smoothLine)
     {
         $this->smoothLine = $smoothLine;
+
+        return $this;
+    }
+
+    /**
+     * Get Axis Position.
+     *
+     * @return string
+     */
+    public function getAxisPosition()
+    {
+        return $this->axisPosition;
+    }
+
+    /**
+     * Set Axis Position.
+     *
+     * @param string $axisPosition
+     *
+     * @return DataSeries
+     */
+    public function setAxisPosition($axisPosition)
+    {
+        $this->axisPosition = $axisPosition;
 
         return $this;
     }
