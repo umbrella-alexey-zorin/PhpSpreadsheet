@@ -153,8 +153,9 @@ class DataSeries
         $this->plotDirection = $plotDirection;
 
         if ($axisPosition === null) {
-            $this->axisPosition = self::AXIS_POSITION_LEFT;
+            $axisPosition = self::AXIS_POSITION_LEFT;
         }
+        $this->axisPosition = $axisPosition;
     }
 
     /**
